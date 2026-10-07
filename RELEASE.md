@@ -8,15 +8,15 @@
 
 | Asset | Type | Size | Description |
 |---|---|---|---|
-| [**`Aura-Setup-1.0.0.exe`**](file:///D:/music-player/release/Aura-Setup-1.0.0.exe) | Windows Installer | ~85.2 MB | Standard Windows NSIS Setup with Start Menu & Desktop Shortcuts |
-| [**`Aura-Portable-1.0.0.exe`**](file:///D:/music-player/release/Aura-Portable-1.0.0.exe) | Portable Executable | ~85.0 MB | Zero-install portable edition (runs from USB or any folder) |
+| [**`Aura-Setup-1.0.0.exe`**](file:///D:/music-player/release/Aura-Setup-1.0.0.exe) | Windows Installer | ~82.1 MB | Standard Windows NSIS Setup with Start Menu & Desktop Shortcuts |
+| [**`Aura-Portable-1.0.0.exe`**](file:///D:/music-player/release/Aura-Portable-1.0.0.exe) | Portable Executable | ~81.9 MB | Zero-install portable edition (runs from USB or any folder) |
 | [`win-unpacked/Aura.exe`](file:///D:/music-player/release/win-unpacked/Aura.exe) | Unpacked Binary | — | Pre-extracted standalone application binary |
 
 ### 🔒 SHA-256 Checksums
 
 ```text
-E7EB3B38539B8915D52943B73CE74F637257D8B78C26898AC4B7540026D1E45B  Aura-Setup-1.0.0.exe
-4EB8B388BE9381F8996E90831C8572C24B4B166C95602F9E4414DB62A8C0DF50  Aura-Portable-1.0.0.exe
+81FF2B028F6E9421575A8E7E213D2BEF5834E399BAF3889512FA62E8B0BA3587  Aura-Setup-1.0.0.exe
+A140EB380963059342E176B0126BCC56B5C92CAAB93A37412A122980589C8696  Aura-Portable-1.0.0.exe
 ```
 
 ---
