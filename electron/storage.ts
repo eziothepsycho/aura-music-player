@@ -268,6 +268,45 @@ export function pruneStaleSongs(
   return { songs: kept, prunedIds };
 }
 
+/**
+ * Removes cached artwork files that no remaining song references.
+ * Only touches our content-hashed cache files (md5.jpg/png) — never anything
+ * else in the artwork directory. Returns how many files were removed.
+ */
+export async function removeUnreferencedArtwork(songs: ScannedTrack[]): Promise<number> {
+  try {
+    const artDir = getArtworkDir();
+    const referenced = new Set<string>();
+    for (const s of songs) {
+      if (!s.coverUrl) continue;
+      const p = extractMediaPath(s.coverUrl);
+      if (p) referenced.add(p.replace(/\//g, '\\').toLowerCase());
+    }
+
+    const entries = await fs.readdir(artDir);
+    let removed = 0;
+    for (const name of entries) {
+      if (!/^[0-9a-f]{32}\.(jpe?g|png|webp|gif)$/i.test(name)) continue;
+      const full = join(artDir, name);
+      if (!referenced.has(full.replace(/\//g, '\\').toLowerCase())) {
+        try {
+          await fs.unlink(full);
+          removed++;
+        } catch {
+          /* best effort — cache files are re-creatable on import */
+        }
+      }
+    }
+    if (removed > 0) {
+      console.log(`[Storage] Removed ${removed} unreferenced artwork cache file(s)`);
+    }
+    return removed;
+  } catch (err) {
+    console.warn('[Storage] Artwork cache cleanup failed (non-fatal):', err);
+    return 0;
+  }
+}
+
 export async function saveLibraryState(state: LibraryState): Promise<boolean> {
   const filePath = getStoragePath();
   const tempPath = `${filePath}.tmp`;

@@ -4,7 +4,7 @@ import { join, extname, dirname } from 'path';
 import { findAudioFiles, parseAudioMetadata, ScannedTrack, SUPPORTED_EXTENSIONS } from './scanner';
 import { auraMediaHandler } from './mediaProtocol';
 import { extractMediaPath } from './mediaUrl';
-import { loadLibraryState, saveLibraryState, getArtworkDir, upsertTrack, pruneStaleSongs, LibraryState } from './storage';
+import { loadLibraryState, saveLibraryState, getArtworkDir, upsertTrack, pruneStaleSongs, removeUnreferencedArtwork, LibraryState } from './storage';
 import {
   scanUsbPhoneFolder,
   transferUsbTracks,
@@ -73,10 +73,15 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Serve local audio files & cached artwork through a canonicalization-safe
   // custom protocol with Range support (see mediaUrl.ts for the URL format).
   protocol.handle('aura-media', auraMediaHandler);
+
+  // Self-heal: drop library records whose local files were deleted outside
+  // Aura (scoped to Aura-managed storage only, so removable/user folders are
+  // never touched). Runs before the window opens so the UI starts truthful.
+  await cleanupMissingManagedTracks();
 
   createWindow();
 
@@ -105,6 +110,49 @@ function scrubSongIds(state: LibraryState, prunedIds: string[]): void {
     ...pl,
     songIds: (pl.songIds || []).filter((id) => !pruned.has(id)),
   }));
+}
+
+/**
+ * Startup self-heal for Aura-managed storage (`Music\Aura\Phone Sync`).
+ * If the user deleted copied files directly in Explorer, the library would
+ * otherwise keep listing dead rows that can never play. Records under the
+ * managed folder whose files no longer exist are removed (plus their
+ * favorites/playlist references), and unreferenced artwork cache files are
+ * garbage-collected. Records in user-scanned folders are intentionally left
+ * alone — those folders may be temporarily unavailable (e.g. USB drives).
+ */
+async function cleanupMissingManagedTracks(): Promise<void> {
+  try {
+    const managedDir = getPhoneSyncDir();
+    const state = await loadLibraryState();
+    let current = state;
+
+    const managedSongs = state.songs.filter((s) => {
+      if (!s.filePath) return false;
+      const p = s.filePath.replace(/\//g, '\\');
+      const dir = managedDir.replace(/\//g, '\\').replace(/\\+$/, '');
+      return p.toLowerCase() === dir.toLowerCase() || p.toLowerCase().startsWith(dir.toLowerCase() + '\\');
+    });
+    const missing = managedSongs.filter((s) => !existsSync(s.filePath));
+    if (missing.length > 0) {
+      const pruned = pruneStaleSongs(state.songs, managedDir);
+      current = {
+        ...state,
+        songs: pruned.songs,
+      };
+      scrubSongIds(current, pruned.prunedIds);
+      await saveLibraryState(current);
+      console.log(
+        `[Startup] Removed ${pruned.prunedIds.length} library record(s) for files missing under ${managedDir} (remaining songs: ${current.songs.length})`
+      );
+    }
+
+    // Always garbage-collect unreferenced artwork cache files (cheap, and
+    // self-heals caches orphaned by manual file deletion).
+    await removeUnreferencedArtwork(current.songs);
+  } catch (err) {
+    console.warn('[Startup] Managed-storage self-heal failed (non-fatal):', err);
+  }
 }
 
 ipcMain.handle('app:get-version', () => app.getVersion());
